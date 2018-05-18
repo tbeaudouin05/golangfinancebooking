@@ -7,7 +7,7 @@ import (
 	"github.com/thomas-bamilo/financebooking/row/scomsrow"
 )
 
-// GetSellerCenterData gets all the existing id_seller_rejection from baa_application.baa_application_schema.seller_rejection and store then into an array of scomsrow.ScOmsRow
+// GetSellerCenterData gets the Seller Center data required for Finance Booking process
 func GetSellerCenterData(dbSc *sql.DB) []scomsrow.ScOmsRow {
 
 	// store sellerCenterQuery in a string
@@ -51,21 +51,21 @@ func GetSellerCenterData(dbSc *sql.DB) []scomsrow.ScOmsRow {
 	AND YEAR(t.created_at) = CASE WHEN MONTH(CURRENT_DATE()) = 1 THEN YEAR(CURRENT_DATE())-1 ELSE YEAR(CURRENT_DATE()) END`
 
 	// write sellerCenterQuery result to an array of scomsrow.ScOmsRow, this array of rows represents sellerCenterTable
-	var iDTransaction, omsIDSalesOrderItem, orderNr, omsSoiCreatedAt, iDSupplier, shortCode, supplierName string
-	var iDTransactionType, transactionValue, iDTransactionStatement, statementStartDate, statementEndDate, comment string
+	var orderNr, shortCode, supplierName, statementStartDate, statementEndDate, comment string
+	var iDTransaction, omsIDSalesOrderItem, iDSupplier, iDTransactionStatement, iDTransactionType int
+	var transactionValue float32
 	var sellerCenterTable []scomsrow.ScOmsRow
 
 	rows, _ := dbSc.Query(sellerCenterQuery)
 
 	for rows.Next() {
-		err := rows.Scan(&iDTransaction, &omsIDSalesOrderItem, &orderNr, &omsSoiCreatedAt, &iDSupplier, &shortCode, &supplierName, &iDTransactionType, &transactionValue, &iDTransactionStatement, &statementStartDate, &statementEndDate, &comment)
+		err := rows.Scan(&iDTransaction, &omsIDSalesOrderItem, &orderNr, &iDSupplier, &shortCode, &supplierName, &iDTransactionType, &transactionValue, &iDTransactionStatement, &statementStartDate, &statementEndDate, &comment)
 		checkError(err)
 		sellerCenterTable = append(sellerCenterTable,
 			scomsrow.ScOmsRow{
 				IDTransaction:          iDTransaction,
 				OmsIDSalesOrderItem:    omsIDSalesOrderItem,
 				OrderNr:                orderNr,
-				OmsSoiCreatedAt:        omsSoiCreatedAt,
 				IDSupplier:             iDSupplier,
 				ShortCode:              shortCode,
 				SupplierName:           supplierName,

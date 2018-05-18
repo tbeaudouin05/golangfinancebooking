@@ -11,6 +11,7 @@ import (
 	"github.com/thomas-bamilo/financebooking/row/beneficiarycoderow"
 	"github.com/thomas-bamilo/financebooking/row/ledgermaprow"
 	"github.com/thomas-bamilo/financebooking/row/retailshortcoderow"
+	"github.com/thomas-bamilo/financebooking/row/scomsrow"
 )
 
 func LoadValidBeneficiaryCodeToBaa(dbBaa *sql.DB, beneficiaryCodeTableValidRow []beneficiarycoderow.BeneficiaryCodeRow) {
@@ -165,6 +166,81 @@ func LoadValidLedgerMapToBaa(dbBaa *sql.DB, ledgerMapTableValidRow []ledgermapro
 		time.Sleep(1 * time.Millisecond)
 	}
 
+}
+
+func GetValidationLedgerMapKey(dbBaa *sql.DB) []scomsrow.ScOmsRow {
+
+	// store LedgerMapKeyQuery in a string
+	ledgerMapKeyQuery := `SELECT 
+	CONCAT(lm.transaction_type,'-',lm.item_status,'-',lm.payment_method,'-'lm.shipment_provider_name) 'ledger_map_key'
+	FROM baa_application.finance.ledger_map lm`
+
+	// write LedgerMapKeyQuery result to an array of scomsrow.ScOmsRow , this array of rows represents ledgerMapKeyTable
+	var ledgerMapKey string
+	var ledgerMapKeyTable []scomsrow.ScOmsRow
+
+	rows, _ := dbBaa.Query(ledgerMapKeyQuery)
+
+	for rows.Next() {
+		err := rows.Scan(&ledgerMapKey)
+		checkError(err)
+		ledgerMapKeyTable = append(ledgerMapKeyTable,
+			scomsrow.ScOmsRow{
+				LedgerMapKey: ledgerMapKey,
+			})
+	}
+
+	return ledgerMapKeyTable
+}
+
+func GetValidationBeneficiaryCode(dbBaa *sql.DB) []scomsrow.ScOmsRow {
+
+	// store BeneficiaryCodeQuery in a string
+	beneficiaryCodeQuery := `SELECT 
+	bcm.short_code
+	FROM baa_application.finance.beneficiary_code_map bcm`
+
+	// write BeneficiaryCodeQuery result to an array of scomsrow.ScOmsRow , this array of rows represents beneficiaryCodeTable
+	var shortCode string
+	var beneficiaryCodeTable []scomsrow.ScOmsRow
+
+	rows, _ := dbBaa.Query(beneficiaryCodeQuery)
+
+	for rows.Next() {
+		err := rows.Scan(&shortCode)
+		checkError(err)
+		beneficiaryCodeTable = append(beneficiaryCodeTable,
+			scomsrow.ScOmsRow{
+				ShortCode: shortCode,
+			})
+	}
+
+	return beneficiaryCodeTable
+}
+
+func GetRetailShortCodeFromBaa(dbBaa *sql.DB) []scomsrow.ScOmsRow {
+
+	// store RetailShortCodeQuery in a string
+	retailShortCodeQuery := `SELECT 
+	rsc.short_code
+	FROM baa_application.finance.retail_short_code rsc`
+
+	// write RetailShortCodeQuery result to an array of scomsrow.ScOmsRow , this array of rows represents retailShortCodeTable
+	var shortCode string
+	var retailShortCodeTable []scomsrow.ScOmsRow
+
+	rows, _ := dbBaa.Query(retailShortCodeQuery)
+
+	for rows.Next() {
+		err := rows.Scan(&shortCode)
+		checkError(err)
+		retailShortCodeTable = append(retailShortCodeTable,
+			scomsrow.ScOmsRow{
+				ShortCode: shortCode,
+			})
+	}
+
+	return retailShortCodeTable
 }
 
 func checkError(err error) {

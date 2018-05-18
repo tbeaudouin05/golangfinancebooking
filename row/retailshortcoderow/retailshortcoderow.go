@@ -20,10 +20,10 @@ func (row RetailShortCodeRow) validateRowFormat() error {
 }
 
 // FilterRetailShortCodeTable splits RetailShortCodeTable into RetailShortCodeTableValidRow and RetailShortCodeTableInvalidRow
-func FilterRetailShortCodeTable(retailShortCodeable []RetailShortCodeRow) (RetailShortCodeTableValidRow, RetailShortCodeTableInvalidRow []RetailShortCodeRow) {
+func FilterRetailShortCodeTable(retailShortCodeTable []RetailShortCodeRow) (RetailShortCodeTableValidRow, RetailShortCodeTableInvalidRow []RetailShortCodeRow) {
 
-	RetailShortCodeTableValidRow = filterPointer(retailShortCodeable, isValidRowFormat)
-	RetailShortCodeTableInvalidRow = filterPointer(retailShortCodeable, isInvalidRowFormat)
+	RetailShortCodeTableValidRow = filterPointer(retailShortCodeTable, isValidRowFormat)
+	RetailShortCodeTableInvalidRow = filterPointer(retailShortCodeTable, isInvalidRowFormat)
 
 	// add error message to RetailShortCodeTableInvalidRow
 	for i := 0; i < len(RetailShortCodeTableInvalidRow); i++ {
@@ -56,7 +56,7 @@ func isValidRowFormat(row *RetailShortCodeRow) bool {
 
 }
 
-// check if SellerRejectionRow has invalid format
+// check if RetailShortCodeRow has invalid format
 func isInvalidRowFormat(row *RetailShortCodeRow) bool {
 
 	err := row.validateRowFormat()
