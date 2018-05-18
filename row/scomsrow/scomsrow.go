@@ -35,9 +35,10 @@ type ScOmsRow struct {
 	ShipmentProviderName string  `json:"shipment_provider_name"`
 	PaidPrice            float32 `json:"paid_price"`
 	// Finance
-	LedgerMapKey string `json:"ledger_map_key"`
-	Ledger       int    `json:"ledger"`
-	Subledger    int    `json:"subledger"`
+	LedgerMapKey    string `json:"ledger_map_key"`
+	Ledger          int    `json:"ledger"`
+	Subledger       int    `json:"subledger"`
+	BeneficiaryCode int    `json:"beneficiary_code"`
 }
 
 // Seller Center row ------------------------------------------------------------------------------------

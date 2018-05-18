@@ -35,7 +35,7 @@ func main() {
 
 	// check benef_code_map is complete ------------------------------------------------
 	// get all the short_code from beneficiary_code_map table of BAA database to check against the ShortCode of sellerCenterTable
-	beneficiaryCodeTable := baainteract.GetValidationBeneficiaryCode(dbBaa)
+	beneficiaryCodeTable := baainteract.GetBeneficiaryCodeTable(dbBaa)
 
 	// check if any missing short_code in beneficairy_code_map table of BAA database
 	missingBeneficiaryCodeTable := validation.MissingBeneficiaryCode(beneficiaryCodeTable, sellerCenterTable)
@@ -55,6 +55,7 @@ func main() {
 
 	// split sellerCenterTable by IDTransaction in SQLite------------------------------------------
 	dbSqlite := connectdb.ConnectToSQLite()
+	defer dbSqlite.Close()
 	// create sc table in SQLite
 	sqliteinteract.CreateScTable(dbSqlite, sellerCenterTable)
 	// create oms table in SQLite
@@ -66,26 +67,35 @@ func main() {
 
 	// check if item_price_oms and item_price_credit_oms have invalid rows--------------------------------
 	// mostly, rows should not have missing values for fields involved in ledger mapping
-	// return itemPriceTableForValidation to check if any invalid row
-	itemPriceTableForValidation := sqliteinteract.ReturnItemPriceTableForValidation(dbSqlite)
+	// return itemPriceAndCreditTableForValidation to check if any invalid row
+	itemPriceAndCreditTableForValidation := sqliteinteract.ReturnItemPriceAndCreditTableForValidation(dbSqlite)
 
-	// check if itemPriceTableForValidation has any invalid row
-	// if itemPriceTableForValidation has any invalid row, send the invalid rows to Finance
+	// check if itemPriceAndCreditTableForValidation has any invalid row
+	// if itemPriceAndCreditTableForValidation has any invalid row, send the invalid rows to Finance
 	// and continue the process only with valid rows
-	// FYI: itemPriceTableForValidation is the union of item_price_oms and item_price_credit_oms SQLite views
-	itemPriceTableForValidation, itemPriceTableForValidationInvalidRow := scomsrow.FilterScOmsTable(itemPriceTableForValidation)
-	scomsrow.IfInvalidScOmsRow(itemPriceTableForValidationInvalidRow)
+	// FYI: itemPriceAndCreditTableForValidation is the union of item_price_oms and item_price_credit_oms SQLite views
+	itemPriceAndCreditTableForValidation, itemPriceAndCreditTableForValidationInvalidRow := scomsrow.FilterScOmsTable(itemPriceAndCreditTableForValidation)
+	scomsrow.IfInvalidScOmsRow(itemPriceAndCreditTableForValidationInvalidRow)
 
 	// check ledger_map is complete ------------------------------------------------
-	// get the LedgerMapKey from ledger_map table of BAA database to check against itemPriceTableForValidation
-	ledgerMapKeyTable := baainteract.GetValidationLedgerMapKey(dbBaa)
+	// get the LedgerMapKey from ledger_map table of BAA database to check against itemPriceAndCreditTableForValidation
+	ledgerMapTable := baainteract.GetLedgerMap(dbBaa)
 
-	// check if any missing ledger_map in ledger_map table of BAA database compared to itemPriceTableForValidation
-	missingLedgerMapKeyTable := validation.MissingLedgerMapKey(ledgerMapKeyTable, itemPriceTableForValidation)
+	// check if any missing ledger_map in ledger_map table of BAA database compared to itemPriceAndCreditTableForValidation
+	missingLedgerMapKeyTable := validation.MissingLedgerMapKey(ledgerMapTable, itemPriceAndCreditTableForValidation)
 
-	// IfMissingLedgerMap STOPs the booking process if any missing ledger_map in ledger_map table of BAA database compared to itemPriceTableForValidation
+	// IfMissingLedgerMap STOPs the booking process if any missing ledger_map in ledger_map table of BAA database compared to itemPriceAndCreditTableForValidation
 	// (we can make it less blocking in the future)
 	validation.IfMissingLedgerMap(missingLedgerMapKeyTable)
+
+	// Create item_price_credit_valid and item_price_valid SQLite tables
+	sqliteinteract.CreateItemPriceCreditValidTable(dbSqlite, itemPriceAndCreditTableForValidation)
+	sqliteinteract.CreateItemPriceValidTable(dbSqlite, itemPriceAndCreditTableForValidation)
+
+	// Create ledger_map SQLite table
+	sqliteinteract.CreateLedgerMapTable(dbSqlite, ledgerMapTable)
+	// Create beneficiary_code_map SQLite table
+	sqliteinteract.CreateBeneficiaryCodeTable(dbSqlite, beneficiaryCodeTable)
 
 	// item_price_credit process --------------------------------------------------------------
 	// join ledgers in SQLite

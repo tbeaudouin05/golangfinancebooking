@@ -168,50 +168,58 @@ func LoadValidLedgerMapToBaa(dbBaa *sql.DB, ledgerMapTableValidRow []ledgermapro
 
 }
 
-func GetValidationLedgerMapKey(dbBaa *sql.DB) []scomsrow.ScOmsRow {
+func GetLedgerMap(dbBaa *sql.DB) []scomsrow.ScOmsRow {
 
-	// store LedgerMapKeyQuery in a string
-	ledgerMapKeyQuery := `SELECT 
+	// store LedgerMapQuery in a string
+	ledgerMapQuery := `SELECT 
 	CONCAT(lm.transaction_type,'-',lm.item_status,'-',lm.payment_method,'-'lm.shipment_provider_name) 'ledger_map_key'
+	,lm.ledger
+	,lm.subledger
 	FROM baa_application.finance.ledger_map lm`
 
-	// write LedgerMapKeyQuery result to an array of scomsrow.ScOmsRow , this array of rows represents ledgerMapKeyTable
+	// write LedgerMapQuery result to an array of scomsrow.ScOmsRow , this array of rows represents ledgerMapTable
 	var ledgerMapKey string
-	var ledgerMapKeyTable []scomsrow.ScOmsRow
+	var ledger, subledger int
+	var ledgerMapTable []scomsrow.ScOmsRow
 
-	rows, _ := dbBaa.Query(ledgerMapKeyQuery)
+	rows, _ := dbBaa.Query(ledgerMapQuery)
 
 	for rows.Next() {
-		err := rows.Scan(&ledgerMapKey)
+		err := rows.Scan(&ledgerMapKey, &ledger, &subledger)
 		checkError(err)
-		ledgerMapKeyTable = append(ledgerMapKeyTable,
+		ledgerMapTable = append(ledgerMapTable,
 			scomsrow.ScOmsRow{
 				LedgerMapKey: ledgerMapKey,
+				Ledger:       ledger,
+				Subledger:    subledger,
 			})
 	}
 
-	return ledgerMapKeyTable
+	return ledgerMapTable
 }
 
-func GetValidationBeneficiaryCode(dbBaa *sql.DB) []scomsrow.ScOmsRow {
+func GetBeneficiaryCodeTable(dbBaa *sql.DB) []scomsrow.ScOmsRow {
 
 	// store BeneficiaryCodeQuery in a string
 	beneficiaryCodeQuery := `SELECT 
 	bcm.short_code
+	,bcm.beneficiary_code
 	FROM baa_application.finance.beneficiary_code_map bcm`
 
 	// write BeneficiaryCodeQuery result to an array of scomsrow.ScOmsRow , this array of rows represents beneficiaryCodeTable
 	var shortCode string
+	var beneficiaryCode int
 	var beneficiaryCodeTable []scomsrow.ScOmsRow
 
 	rows, _ := dbBaa.Query(beneficiaryCodeQuery)
 
 	for rows.Next() {
-		err := rows.Scan(&shortCode)
+		err := rows.Scan(&shortCode, &beneficiaryCode)
 		checkError(err)
 		beneficiaryCodeTable = append(beneficiaryCodeTable,
 			scomsrow.ScOmsRow{
-				ShortCode: shortCode,
+				ShortCode:       shortCode,
+				BeneficiaryCode: beneficiaryCode,
 			})
 	}
 
