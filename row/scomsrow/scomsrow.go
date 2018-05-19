@@ -41,6 +41,13 @@ type ScOmsRow struct {
 	BeneficiaryCode int    `json:"beneficiary_code"`
 }
 
+// NgsRow represents a row of NgsTemplate, the final output for Finance
+type NgsRow struct {
+	AccountCode string  `csv:"Account Code"`
+	AccountFree string  `csv:"Account Free"`
+	Amount string  `csv:"Amount"`
+}
+
 // Seller Center row ------------------------------------------------------------------------------------
 // define validation for each field of SellerCenterRow
 func (row ScOmsRow) validateScRowFormat() error {

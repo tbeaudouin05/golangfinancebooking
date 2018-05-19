@@ -8,7 +8,9 @@ import (
 	"github.com/thomas-bamilo/financebooking/dbinteract/baainteract"
 	"github.com/thomas-bamilo/financebooking/dbinteract/omsinteract"
 	"github.com/thomas-bamilo/financebooking/dbinteract/scinteract"
-	"github.com/thomas-bamilo/financebooking/dbinteract/sqliteinteract"
+	"github.com/thomas-bamilo/financebooking/dbinteract/sqliteinteract/validate"
+	"github.com/thomas-bamilo/financebooking/dbinteract/sqliteinteract/transform"
+	"github.com/thomas-bamilo/financebooking/dbinteract/sqliteinteract/output"
 	"github.com/thomas-bamilo/financebooking/validation"
 	"github.com/thomas-bamilo/sql/connectdb"
 )
@@ -57,18 +59,18 @@ func main() {
 	dbSqlite := connectdb.ConnectToSQLite()
 	defer dbSqlite.Close()
 	// create sc table in SQLite
-	sqliteinteract.CreateScTable(dbSqlite, sellerCenterTable)
+	validate.CreateScTable(dbSqlite, sellerCenterTable)
 	// create oms table in SQLite
-	sqliteinteract.CreateOmsTableItemPrice(dbSqlite, omsTable)
+	validate.CreateOmsTableItemPrice(dbSqlite, omsTable)
 	// CreateTransactionTypeTable splits sc table into transaction_type views in SQLite
 	// - it also splits sc table between rows with comment vs. without comment
 	// - it also joins oms table to item_price and item_price_credit views without comment
-	sqliteinteract.CreateTransactionTypeTable(dbSqlite)
+	validate.CreateTransactionTypeTable(dbSqlite)
 
-	// check if item_price_oms and item_price_credit_oms have invalid rows--------------------------------
+	// check if item_price_oms and item_price_credit_oms have invalid rows-----------------------------------------------------------------
 	// mostly, rows should not have missing values for fields involved in ledger mapping
 	// return itemPriceAndCreditTableForValidation to check if any invalid row
-	itemPriceAndCreditTableForValidation := sqliteinteract.ReturnItemPriceAndCreditTableForValidation(dbSqlite)
+	itemPriceAndCreditTableForValidation := validate.ReturnItemPriceAndCreditTableForValidation(dbSqlite)
 
 	// check if itemPriceAndCreditTableForValidation has any invalid row
 	// if itemPriceAndCreditTableForValidation has any invalid row, send the invalid rows to Finance
@@ -77,7 +79,7 @@ func main() {
 	itemPriceAndCreditTableForValidation, itemPriceAndCreditTableForValidationInvalidRow := scomsrow.FilterScOmsTable(itemPriceAndCreditTableForValidation)
 	scomsrow.IfInvalidScOmsRow(itemPriceAndCreditTableForValidationInvalidRow)
 
-	// check ledger_map is complete ------------------------------------------------
+	// check ledger_map is complete -----------------------------------------------------------------------------------------------------
 	// get the LedgerMapKey from ledger_map table of BAA database to check against itemPriceAndCreditTableForValidation
 	ledgerMapTable := baainteract.GetLedgerMap(dbBaa)
 
@@ -89,20 +91,39 @@ func main() {
 	validation.IfMissingLedgerMap(missingLedgerMapKeyTable)
 
 	// Create item_price_credit_valid and item_price_valid SQLite tables
-	sqliteinteract.CreateItemPriceCreditValidTable(dbSqlite, itemPriceAndCreditTableForValidation)
-	sqliteinteract.CreateItemPriceValidTable(dbSqlite, itemPriceAndCreditTableForValidation)
+	validate.CreateItemPriceCreditValidTable(dbSqlite, itemPriceAndCreditTableForValidation)
+	validate.CreateItemPriceValidTable(dbSqlite, itemPriceAndCreditTableForValidation)
+
+	// transform valid ipc, ipt and commission data ---------------------------------------------------------------------------------------------------
 
 	// Create ledger_map SQLite table
-	sqliteinteract.CreateLedgerMapTable(dbSqlite, ledgerMapTable)
+	transform.CreateLedgerMapTable(dbSqlite, ledgerMapTable)
 	// Create beneficiary_code_map SQLite table
-	sqliteinteract.CreateBeneficiaryCodeTable(dbSqlite, beneficiaryCodeTable)
+	transform.CreateBeneficiaryCodeTable(dbSqlite, beneficiaryCodeTable)
 
-	// item_price_credit process --------------------------------------------------------------
-	// join ledgers in SQLite
-	// (i) create ledgerMapKey from baa into SQLite, (ii) join ledgerMapKey to item_price_credit_oms
-	// BEFORE CODING check if (i) you cannot map benef_code right await with ledger map,
-	// (ii) you cannot join ledgers and benef_code to item_price_oms AND item_price_credit_oms at the same time
+	// ipc_ipt_c process ---------------------------------------------------------------------------------------------------------------
+	// add all necessary data by joining tables and adding calculated fields
+	transform.CreateIpcFinal(dbSqlite)
+	transform.CreateIptFinal(dbSqlite)
+	transform.CreateCommissionFinal(dbSqlite)
+
+	// create all the "ngs-friendly" data tables
+	output.CreateVoucherLedgerAmountView(dbSqlite)
+	output.CreateIpcPaidPriceLedgerAmountView(dbSqlite)
+	output.CreateIptPaidPriceLedgerAmountView(dbSqlite)
+	output.CreateCommissionVatLedgerAmountView(dbSqlite)
+	output.CreateTotalLedgerAmountView(dbSqlite)
+
+	// output ngsIpcIptC template
+	output.ReturnNgsIpcIptC(dbSqlite)
+
+
 }
+
+
+
+
+
 
 func uniqueOmsIDSalesOrderItem(sellerCenterTable []scomsrow.ScOmsRow) (uniqueOmsIDSalesOrderItemList string) {
 
