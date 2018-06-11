@@ -1,11 +1,11 @@
 package transform
 
 import (
-
 	"database/sql"
 	"log"
 	"time"
 
+	"github.com/joho/sqltocsv"
 	"github.com/thomas-bamilo/financebooking/row/scomsrow"
 )
 
@@ -37,6 +37,7 @@ func CreateLedgerMapTable(db *sql.DB, ledgerMapTable []scomsrow.ScOmsRow) {
 			ledgerMapTable[i].Subledger,
 		)
 		time.Sleep(1 * time.Millisecond)
+
 	}
 
 }
@@ -79,6 +80,7 @@ func CreateIpcFinal(db *sql.DB) {
 	SELECT 
 	ipcv.oms_id_sales_order_item
 		,ipcv.order_nr
+		,ipcv.id_supplier
 		,ipcv.short_code
 		,ipcv.supplier_name
 		,ipcv.id_transaction_type
@@ -117,6 +119,7 @@ func CreateIptFinal(db *sql.DB) {
 	SELECT 
 	iptv.oms_id_sales_order_item
 		,iptv.order_nr
+		,iptv.id_supplier
 		,iptv.short_code
 		,iptv.supplier_name
 		,iptv.id_transaction_type
@@ -153,46 +156,146 @@ func CreateCommissionFinal(db *sql.DB) {
 	SELECT 
 	commission.oms_id_sales_order_item
 		,commission.order_nr
+		,commission.id_supplier
 		,commission.short_code
 		,commission.supplier_name
 		,commission.transaction_type
-		,commission.transaction_value * (-1) * (100/109) 'commission_revenue'
-		,commission.transaction_value * (-1) * (100/109) * 0.09 'commission_vat'
+		,commission.transaction_value
+		,(commission.transaction_value*-1*100/109) 'commission_revenue'
+		,(commission.transaction_value*-1*100/109*0.09) 'commission_vat'
 		,commission.comment
-		,lm.ledger 
-		,lm.subledger 
 		,bcm.beneficiary_code
 	FROM commission 
-	LEFT JOIN ledger_map lm 
-	USING(ledger_map_key)
 	LEFT JOIN beneficiary_code_map bcm
 	USING(short_code)
 	UNION ALL
 	SELECT 
 	commission_credit.oms_id_sales_order_item
 		,commission_credit.order_nr
+		,commission_credit.id_supplier
 		,commission_credit.short_code
 		,commission_credit.supplier_name
 		,commission_credit.transaction_type
-		,commission_credit.transaction_value * (-1) * (100/109) 'commission_revenue'
-		,commission_credit.transaction_value * (-1) * (100/109) * 0.09 'commission_vat'
+		,commission_credit.transaction_value
+		,(commission_credit.transaction_value*-1*100/109) 'commission_revenue'
+		,(commission_credit.transaction_value*-1*100/109*0.09) 'commission_vat'
 		,commission_credit.comment
-		,lm.ledger
-		,lm.subledger
 		,bcm.beneficiary_code
 	FROM commission_credit 
-	LEFT JOIN ledger_map lm 
-	USING(ledger_map_key)
 	LEFT JOIN beneficiary_code_map bcm
 	USING(short_code)
 	`
-
+	//(-1) * (100/109) * 0.09)
 	createCommissionFinalView, err := db.Prepare(createCommissionFinalViewStr)
 	checkError(err)
 	createCommissionFinalView.Exec()
 
 }
 
+func DownloadIpcIptToCsv(db *sql.DB, tableName string) {
+
+	query := `SELECT ` +
+		tableName + `.oms_id_sales_order_item,` +
+		tableName + `.order_nr,` +
+		tableName + `.id_supplier,` +
+		tableName + `.short_code,` +
+		tableName + `.supplier_name,` +
+		tableName + `.transaction_type,` +
+		tableName + `.transaction_value,` +
+		tableName + `.comment,` +
+		tableName + `.item_status,` +
+		tableName + `.payment_method,` +
+		tableName + `.shipment_provider_name,` +
+		tableName + `.paid_price,` +
+		tableName + `.voucher,` +
+		tableName + `.ledger,` +
+		tableName + `.subledger,` +
+		tableName + `.beneficiary_code 
+	FROM ` + tableName
+	var orderNr, shortCode, supplierName, transactionType, comment, itemStatus, paymentMethod, shipmentProvidername string
+	var omsIDSalesOrderItem, iDSupplier, ledger, subledger, beneficiaryCode int
+	var transactionValue, paidPrice, voucher float32
+	var ngsTemplate []scomsrow.ScOmsRow
+
+	rows, err := db.Query(query)
+	checkError(err)
+
+	for rows.Next() {
+		err := rows.Scan(&omsIDSalesOrderItem, &orderNr, &iDSupplier, &shortCode, &supplierName, &transactionType, &transactionValue, &comment, &itemStatus, &paymentMethod, &shipmentProvidername, &paidPrice, &voucher, &ledger, &subledger, &beneficiaryCode)
+		checkError(err)
+		ngsTemplate = append(ngsTemplate,
+			scomsrow.ScOmsRow{
+				OmsIDSalesOrderItem:  omsIDSalesOrderItem,
+				OrderNr:              orderNr,
+				IDSupplier:           iDSupplier,
+				ShortCode:            shortCode,
+				SupplierName:         supplierName,
+				TransactionType:      transactionType,
+				TransactionValue:     transactionValue,
+				Comment:              comment,
+				ItemStatus:           itemStatus,
+				PaymentMethod:        paymentMethod,
+				ShipmentProviderName: shipmentProvidername,
+				PaidPrice:            paidPrice,
+				Voucher:              voucher,
+				Ledger:               ledger,
+				Subledger:            subledger,
+				BeneficiaryCode:      beneficiaryCode,
+			})
+
+		err = sqltocsv.WriteFile(tableName+".csv", rows)
+		checkError(err)
+	}
+
+}
+
+func DownloadCommissionToCsv(db *sql.DB, tableName string) {
+
+	query := `SELECT ` +
+		tableName + `.oms_id_sales_order_item,` +
+		tableName + `.order_nr,` +
+		tableName + `.id_supplier,` +
+		tableName + `.short_code,` +
+		tableName + `.supplier_name,` +
+		tableName + `.transaction_type,` +
+		tableName + `.transaction_value,` +
+		tableName + `.commission_revenue,` +
+		tableName + `.commission_vat,` +
+		tableName + `.comment,` +
+		tableName + `.beneficiary_code 
+	FROM ` + tableName
+
+	var orderNr, shortCode, supplierName, transactionType, comment string
+	var omsIDSalesOrderItem, iDSupplier, beneficiaryCode int
+	var transactionValue, commissionRevenue, commissionVat float32
+	var ngsTemplate []scomsrow.ScOmsRow
+
+	rows, err := db.Query(query)
+	checkError(err)
+
+	for rows.Next() {
+		err := rows.Scan(&omsIDSalesOrderItem, &orderNr, &iDSupplier, &shortCode, &supplierName, &transactionType, &transactionValue, &commissionRevenue, &commissionVat, &comment, &beneficiaryCode)
+		checkError(err)
+		ngsTemplate = append(ngsTemplate,
+			scomsrow.ScOmsRow{
+				OmsIDSalesOrderItem: omsIDSalesOrderItem,
+				OrderNr:             orderNr,
+				IDSupplier:          iDSupplier,
+				ShortCode:           shortCode,
+				SupplierName:        supplierName,
+				TransactionType:     transactionType,
+				TransactionValue:    transactionValue,
+				CommissionRevenue:   commissionRevenue,
+				CommissionVat:       commissionVat,
+				Comment:             comment,
+				BeneficiaryCode:     beneficiaryCode,
+			})
+
+		err = sqltocsv.WriteFile(tableName+".csv", rows)
+		checkError(err)
+	}
+
+}
 
 func checkError(err error) {
 	if err != nil {

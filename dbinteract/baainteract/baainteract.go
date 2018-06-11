@@ -172,7 +172,7 @@ func GetLedgerMap(dbBaa *sql.DB) []scomsrow.ScOmsRow {
 
 	// store LedgerMapQuery in a string
 	ledgerMapQuery := `SELECT 
-	CONCAT(lm.transaction_type,'-',lm.item_status,'-',lm.payment_method,'-'lm.shipment_provider_name) 'ledger_map_key'
+	CONCAT(lm.transaction_type,'-',lm.item_status,'-',lm.payment_method,'-',lm.shipment_provider_name) 'ledger_map_key'
 	,lm.ledger
 	,lm.subledger
 	FROM baa_application.finance.ledger_map lm`
@@ -182,7 +182,8 @@ func GetLedgerMap(dbBaa *sql.DB) []scomsrow.ScOmsRow {
 	var ledger, subledger int
 	var ledgerMapTable []scomsrow.ScOmsRow
 
-	rows, _ := dbBaa.Query(ledgerMapQuery)
+	rows, err := dbBaa.Query(ledgerMapQuery)
+	checkError(err)
 
 	for rows.Next() {
 		err := rows.Scan(&ledgerMapKey, &ledger, &subledger)
@@ -193,6 +194,9 @@ func GetLedgerMap(dbBaa *sql.DB) []scomsrow.ScOmsRow {
 				Ledger:       ledger,
 				Subledger:    subledger,
 			})
+
+		//err = sqltocsv.WriteFile("ledgerMapTable.csv", rows)
+		//checkError(err)
 	}
 
 	return ledgerMapTable

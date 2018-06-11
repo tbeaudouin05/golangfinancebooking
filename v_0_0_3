@@ -1,1 +1,3 @@
 finished item_price_and_credit_process not tested
+
+validate > createTransactionTypeView WHERE clause: you modified

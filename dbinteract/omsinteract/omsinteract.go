@@ -14,11 +14,11 @@ func GetOmsData(dbOms *sql.DB, omsIDSalesOrderItemList string) []scomsrow.ScOmsR
 	// store LedgerMapKeyQuery in a string
 	LedgerMapKeyQuery := `
 	SELECT
-	isoi.id_sales_order_item
-	,isois.name 'item_status'
-	,iso.payment_method 'payment_method'
-	,osp.shipment_provider_name 'shipment_provider_name'
-	,isoi.paid_price 'paid_price'
+	COALESCE(isoi.id_sales_order_item,0) 'oms_id_sales_order_item'
+	,COALESCE(isois.name,'NULL') 'item_status'
+	,COALESCE(iso.payment_method,'NULL') 'payment_method'
+	,COALESCE(osp.shipment_provider_name,'NULL') 'shipment_provider_name'
+	,COALESCE(isoi.paid_price,'NULL') 'paid_price'
   
 	FROM ims_sales_order_item isoi
   
@@ -48,7 +48,8 @@ func GetOmsData(dbOms *sql.DB, omsIDSalesOrderItemList string) []scomsrow.ScOmsR
 
 	var omsTable []scomsrow.ScOmsRow
 
-	rows, _ := dbOms.Query(LedgerMapKeyQuery)
+	rows, err := dbOms.Query(LedgerMapKeyQuery)
+	checkError(err)
 
 	for rows.Next() {
 		err := rows.Scan(&omsIDSalesOrderItem, &itemStatus, &paymentMethod, &shipmentProviderName, &paidPrice)

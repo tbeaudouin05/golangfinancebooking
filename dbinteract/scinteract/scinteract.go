@@ -13,20 +13,20 @@ func GetSellerCenterData(dbSc *sql.DB) []scomsrow.ScOmsRow {
 	// store sellerCenterQuery in a string
 	sellerCenterQuery := `
 	SELECT 
-	t.id_transaction
-	,soi.src_id 'oms_id_sales_order_item'
-	,so.order_nr
-	,s.id_seller
-	,s.short_code
-	,s.name AS  'seller_name'
-	,tasg.id_tre2_account_statement_group 'id_transaction_type'
-	,t.value AS  'transaction_value'
-	,ts.id_transaction_statement
-	,ts.start_date AS 'statement_start_date'
-	,ts.end_date AS 'statement_end_date'
-	,t.description AS 'comment'
+	COALESCE(t.id_transaction,0) 'id_transaction'
+	,COALESCE(soi.src_id,0) 'oms_id_sales_order_item'
+	,COALESCE(so.order_nr,0) 'order_nr'
+	,COALESCE(s.id_seller,0) 'id_supplier'
+	,COALESCE(s.short_code,'NULL') 'short_code'
+	,COALESCE(s.name,'NULL') 'supplier_name'
+	,COALESCE(tasg.name,'NULL') 'transaction_type'
+	,COALESCE(tasg.id_tre2_account_statement_group,0) 'id_transaction_type'
+	,COALESCE(t.value,0) 'transaction_value'
+	,COALESCE(ts.id_transaction_statement,0) 'id_transaction_statement'
+	,COALESCE(ts.start_date,'NULL') 'statement_start_date'
+	,COALESCE(ts.end_date,'NULL') 'statement_end_date'
+	,COALESCE(t.description,'NULL') 'comment'
 	
-  
 	FROM transaction t 
   
 	LEFT JOIN tre2_account_statement_group tasg
@@ -47,19 +47,23 @@ func GetSellerCenterData(dbSc *sql.DB) []scomsrow.ScOmsRow {
 	LEFT JOIN transaction_statement ts
 	ON ts.id_transaction_statement = t.fk_transaction_statement
 
-	WHERE MONTH(t.created_at) = CASE WHEN MONTH(CURRENT_DATE()) = 1 THEN 12 ELSE MONTH(CURRENT_DATE())-1 END
-	AND YEAR(t.created_at) = CASE WHEN MONTH(CURRENT_DATE()) = 1 THEN YEAR(CURRENT_DATE())-1 ELSE YEAR(CURRENT_DATE()) END`
+	WHERE MONTH(t.created_at) = 4
+	AND YEAR(t.created_at) = 2018`
+
+	//WHERE MONTH(t.created_at) = CASE WHEN MONTH(CURRENT_DATE()) = 1 THEN 12 ELSE MONTH(CURRENT_DATE())-1 END
+	//AND YEAR(t.created_at) = CASE WHEN MONTH(CURRENT_DATE()) = 1 THEN YEAR(CURRENT_DATE())-1 ELSE YEAR(CURRENT_DATE()) END
 
 	// write sellerCenterQuery result to an array of scomsrow.ScOmsRow, this array of rows represents sellerCenterTable
-	var orderNr, shortCode, supplierName, statementStartDate, statementEndDate, comment string
+	var orderNr, shortCode, supplierName, transactionType, statementStartDate, statementEndDate, comment string
 	var iDTransaction, omsIDSalesOrderItem, iDSupplier, iDTransactionStatement, iDTransactionType int
 	var transactionValue float32
 	var sellerCenterTable []scomsrow.ScOmsRow
 
-	rows, _ := dbSc.Query(sellerCenterQuery)
+	rows, err := dbSc.Query(sellerCenterQuery)
+	checkError(err)
 
 	for rows.Next() {
-		err := rows.Scan(&iDTransaction, &omsIDSalesOrderItem, &orderNr, &iDSupplier, &shortCode, &supplierName, &iDTransactionType, &transactionValue, &iDTransactionStatement, &statementStartDate, &statementEndDate, &comment)
+		err := rows.Scan(&iDTransaction, &omsIDSalesOrderItem, &orderNr, &iDSupplier, &shortCode, &supplierName, &transactionType, &iDTransactionType, &transactionValue, &iDTransactionStatement, &statementStartDate, &statementEndDate, &comment)
 		checkError(err)
 		sellerCenterTable = append(sellerCenterTable,
 			scomsrow.ScOmsRow{
@@ -69,6 +73,7 @@ func GetSellerCenterData(dbSc *sql.DB) []scomsrow.ScOmsRow {
 				IDSupplier:             iDSupplier,
 				ShortCode:              shortCode,
 				SupplierName:           supplierName,
+				TransactionType:        transactionType,
 				IDTransactionType:      iDTransactionType,
 				TransactionValue:       transactionValue,
 				IDTransactionStatement: iDTransactionStatement,
@@ -76,6 +81,9 @@ func GetSellerCenterData(dbSc *sql.DB) []scomsrow.ScOmsRow {
 				StatementEndDate:       statementEndDate,
 				Comment:                comment,
 			})
+
+		//err = sqltocsv.WriteFile("sellerCenterTable.csv", rows)
+		//checkError(err)
 	}
 
 	return sellerCenterTable

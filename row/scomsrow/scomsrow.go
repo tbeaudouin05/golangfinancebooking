@@ -35,17 +35,20 @@ type ScOmsRow struct {
 	ShipmentProviderName string  `json:"shipment_provider_name"`
 	PaidPrice            float32 `json:"paid_price"`
 	// Finance
-	LedgerMapKey    string `json:"ledger_map_key"`
-	Ledger          int    `json:"ledger"`
-	Subledger       int    `json:"subledger"`
-	BeneficiaryCode int    `json:"beneficiary_code"`
+	Voucher           float32 `json:"voucher"`
+	CommissionRevenue float32 `json:"commission_revenue"`
+	CommissionVat     float32 `json:"commission_vat"`
+	LedgerMapKey      string  `json:"ledger_map_key"`
+	Ledger            int     `json:"ledger"`
+	Subledger         int     `json:"subledger"`
+	BeneficiaryCode   int     `json:"beneficiary_code"`
 }
 
 // NgsRow represents a row of NgsTemplate, the final output for Finance
 type NgsRow struct {
-	AccountCode string  `csv:"Account Code"`
-	AccountFree string  `csv:"Account Free"`
-	Amount string  `csv:"Amount"`
+	AccountCode string `json:"Account Code"`
+	AccountFree string `json:"Account Free"`
+	Amount      string `json:"Amount"`
 }
 
 // Seller Center row ------------------------------------------------------------------------------------
@@ -150,17 +153,17 @@ func isInvalidScRowFormat(row *ScOmsRow) bool {
 // define validation for each field of ScOmsRow
 func (row ScOmsRow) validateScOmsRowFormat() error {
 	return validation.ValidateStruct(&row,
-		validation.Field(&row.IDTransaction, validation.Required),
+		// validation.Field(&row.IDTransaction, validation.Required),
 		validation.Field(&row.OmsIDSalesOrderItem, validation.Required),
 		validation.Field(&row.OrderNr, validation.Required, is.Int),
 		validation.Field(&row.IDSupplier, validation.Required),
 		validation.Field(&row.ShortCode, validation.Required),
-		validation.Field(&row.IDTransactionType, validation.Required),
+		//validation.Field(&row.IDTransactionType, validation.Required),
 		validation.Field(&row.TransactionType, validation.Required),
 		validation.Field(&row.TransactionValue, validation.Required),
-		validation.Field(&row.IDTransactionStatement, validation.Required),
-		validation.Field(&row.StatementStartDate, validation.Required),
-		validation.Field(&row.StatementEndDate, validation.Required),
+		//validation.Field(&row.IDTransactionStatement, validation.Required),
+		//validation.Field(&row.StatementStartDate, validation.Required),
+		//validation.Field(&row.StatementEndDate, validation.Required),
 		validation.Field(&row.ItemStatus, validation.Required),
 		validation.Field(&row.PaymentMethod, validation.Required),
 		validation.Field(&row.ShipmentProviderName, validation.Required),

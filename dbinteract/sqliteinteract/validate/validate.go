@@ -1,13 +1,14 @@
 package validate
 
 import (
-
 	"database/sql"
 	"log"
 	"time"
 
+	"github.com/joho/sqltocsv"
 	"github.com/thomas-bamilo/financebooking/row/scomsrow"
 )
+
 type transactionType struct {
 	idTransactionType string
 	transactionType   string
@@ -49,12 +50,13 @@ func CreateScTable(db *sql.DB, sellerCenterTable []scomsrow.ScOmsRow) {
 	createScTableStr := `CREATE TABLE sc (
 	oms_id_sales_order_item INTEGER
 	,order_nr INTEGER
+	,id_supplier INTEGER
 	,short_code TEXT
 	,supplier_name TEXT
 	,id_transaction_type INTEGER
 	,transaction_type TEXT
 	,transaction_value REAL
-	,comment TEXT`
+	,comment TEXT)`
 
 	createScTable, err := db.Prepare(createScTableStr)
 	checkError(err)
@@ -64,23 +66,26 @@ func CreateScTable(db *sql.DB, sellerCenterTable []scomsrow.ScOmsRow) {
 	insertScTableStr := `INSERT INTO sc (
 		oms_id_sales_order_item
 		,order_nr
+		,id_supplier
 		,short_code
 		,supplier_name
 		,id_transaction_type
 		,transaction_type
 		,transaction_value
 		,comment)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	insertScTable, err := db.Prepare(insertScTableStr)
 	checkError(err)
 	for i := 0; i < len(sellerCenterTable); i++ {
 		insertScTable.Exec(
 			sellerCenterTable[i].OmsIDSalesOrderItem,
 			sellerCenterTable[i].OrderNr,
+			sellerCenterTable[i].IDSupplier,
 			sellerCenterTable[i].ShortCode,
 			sellerCenterTable[i].SupplierName,
 			sellerCenterTable[i].IDTransactionType,
 			sellerCenterTable[i].TransactionType,
+			sellerCenterTable[i].TransactionValue,
 			sellerCenterTable[i].Comment,
 		)
 		time.Sleep(1 * time.Millisecond)
@@ -155,6 +160,7 @@ func ReturnItemPriceAndCreditTableForValidation(db *sql.DB) []scomsrow.ScOmsRow 
 	SELECT 
 	ipco.oms_id_sales_order_item
 	,ipco.order_nr
+	,ipco.id_supplier
 	,ipco.short_code
 	,ipco.supplier_name
 	,ipco.id_transaction_type
@@ -171,6 +177,7 @@ func ReturnItemPriceAndCreditTableForValidation(db *sql.DB) []scomsrow.ScOmsRow 
 	SELECT 
 	ipto.oms_id_sales_order_item
 	,ipto.order_nr
+	,ipto.id_supplier
 	,ipto.short_code
 	,ipto.supplier_name
 	,ipto.id_transaction_type
@@ -182,10 +189,10 @@ func ReturnItemPriceAndCreditTableForValidation(db *sql.DB) []scomsrow.ScOmsRow 
 	,ipto.shipment_provider_name
 	,ipto.paid_price
 	,ipto.ledger_map_key
-	FROM item_price_oms ipto
+	FROM  item_price_oms ipto
 `
 	var orderNr, shortCode, supplierName, transactionType, comment, itemStatus, paymentMethod, shipmentProvidername, ledgerMapKey string
-	var omsIDSalesOrderItem, iDTransactionType int
+	var omsIDSalesOrderItem, iDSupplier, iDTransactionType int
 	var transactionValue, paidPrice float32
 	var itemPriceAndCreditTableForValidation []scomsrow.ScOmsRow
 
@@ -193,12 +200,13 @@ func ReturnItemPriceAndCreditTableForValidation(db *sql.DB) []scomsrow.ScOmsRow 
 	checkError(err)
 
 	for rows.Next() {
-		err := rows.Scan(&omsIDSalesOrderItem, &orderNr, &shortCode, &supplierName, &iDTransactionType, &transactionType, &transactionValue, &comment, &itemStatus, &paymentMethod, &shipmentProvidername, &paidPrice, &ledgerMapKey)
+		err := rows.Scan(&omsIDSalesOrderItem, &orderNr, &iDSupplier, &shortCode, &supplierName, &iDTransactionType, &transactionType, &transactionValue, &comment, &itemStatus, &paymentMethod, &shipmentProvidername, &paidPrice, &ledgerMapKey)
 		checkError(err)
 		itemPriceAndCreditTableForValidation = append(itemPriceAndCreditTableForValidation,
 			scomsrow.ScOmsRow{
 				OmsIDSalesOrderItem:  omsIDSalesOrderItem,
 				OrderNr:              orderNr,
+				IDSupplier:           iDSupplier,
 				ShortCode:            shortCode,
 				SupplierName:         supplierName,
 				IDTransactionType:    iDTransactionType,
@@ -211,6 +219,9 @@ func ReturnItemPriceAndCreditTableForValidation(db *sql.DB) []scomsrow.ScOmsRow 
 				PaidPrice:            paidPrice,
 				LedgerMapKey:         ledgerMapKey,
 			})
+
+		//err = sqltocsv.WriteFile("itemPriceAndCreditTableForValidation.csv", rows)
+		//checkError(err)
 	}
 
 	return itemPriceAndCreditTableForValidation
@@ -223,6 +234,7 @@ func CreateItemPriceCreditValidTable(db *sql.DB, itemPriceAndCreditTableValid []
 	createItemPriceCreditValidTableStr := `CREATE TABLE item_price_credit_valid (
 	oms_id_sales_order_item INTEGER
 	,order_nr INTEGER
+	,id_supplier INTEGER
 	,short_code TEXT
 	,supplier_name TEXT
 	,id_transaction_type INTEGER
@@ -243,6 +255,7 @@ func CreateItemPriceCreditValidTable(db *sql.DB, itemPriceAndCreditTableValid []
 	insertItemPriceCreditValidTableStr := `INSERT INTO item_price_credit_valid (
 		oms_id_sales_order_item
 		,order_nr
+		,id_supplier
 		,short_code
 		,supplier_name
 		,id_transaction_type
@@ -254,7 +267,7 @@ func CreateItemPriceCreditValidTable(db *sql.DB, itemPriceAndCreditTableValid []
 		,shipment_provider_name
 		,paid_price
 		,ledger_map_key) 
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	insertItemPriceCreditValidTable, err := db.Prepare(insertItemPriceCreditValidTableStr)
 	checkError(err)
 	for i := 0; i < len(itemPriceAndCreditTableValid); i++ {
@@ -262,6 +275,7 @@ func CreateItemPriceCreditValidTable(db *sql.DB, itemPriceAndCreditTableValid []
 			insertItemPriceCreditValidTable.Exec(
 				itemPriceAndCreditTableValid[i].OmsIDSalesOrderItem,
 				itemPriceAndCreditTableValid[i].OrderNr,
+				itemPriceAndCreditTableValid[i].IDSupplier,
 				itemPriceAndCreditTableValid[i].ShortCode,
 				itemPriceAndCreditTableValid[i].SupplierName,
 				itemPriceAndCreditTableValid[i].IDTransactionType,
@@ -287,6 +301,7 @@ func CreateItemPriceValidTable(db *sql.DB, itemPriceAndCreditTableValid []scomsr
 	createItemPriceValidTableStr := `CREATE TABLE item_price_valid (
 	oms_id_sales_order_item INTEGER
 	,order_nr INTEGER
+	,id_supplier INTEGER
 	,short_code TEXT
 	,supplier_name TEXT
 	,id_transaction_type INTEGER
@@ -307,6 +322,7 @@ func CreateItemPriceValidTable(db *sql.DB, itemPriceAndCreditTableValid []scomsr
 	insertItemPriceValidTableStr := `INSERT INTO item_price_valid (
 		oms_id_sales_order_item
 		,order_nr
+		,id_supplier
 		,short_code
 		,supplier_name
 		,id_transaction_type
@@ -318,7 +334,7 @@ func CreateItemPriceValidTable(db *sql.DB, itemPriceAndCreditTableValid []scomsr
 		,shipment_provider_name
 		,paid_price
 		,ledger_map_key) 
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	insertItemPriceValidTable, err := db.Prepare(insertItemPriceValidTableStr)
 	checkError(err)
 	for i := 0; i < len(itemPriceAndCreditTableValid); i++ {
@@ -326,6 +342,7 @@ func CreateItemPriceValidTable(db *sql.DB, itemPriceAndCreditTableValid []scomsr
 			insertItemPriceValidTable.Exec(
 				itemPriceAndCreditTableValid[i].OmsIDSalesOrderItem,
 				itemPriceAndCreditTableValid[i].OrderNr,
+				itemPriceAndCreditTableValid[i].IDSupplier,
 				itemPriceAndCreditTableValid[i].ShortCode,
 				itemPriceAndCreditTableValid[i].SupplierName,
 				itemPriceAndCreditTableValid[i].IDTransactionType,
@@ -354,6 +371,7 @@ func createTransactionTypeCommentView(db *sql.DB, idTransactionType, transaction
 	SELECT 
 	sc.oms_id_sales_order_item
 	,sc.order_nr
+	,sc.id_supplier
 	,sc.short_code
 	,sc.supplier_name
 	,sc.id_transaction_type
@@ -361,7 +379,7 @@ func createTransactionTypeCommentView(db *sql.DB, idTransactionType, transaction
 	,sc.transaction_value
 	,sc.comment
 	FROM sc 
-	WHERE sc.comment IS NOT NULL
+	WHERE sc.comment <> 'NULL'
 	AND sc.id_transaction_type IN(` + idTransactionType + `)
 	`
 
@@ -381,6 +399,7 @@ func createTransactionTypeView(db *sql.DB, idTransactionType, transactionType st
 	SELECT 
 	sc.oms_id_sales_order_item
 	,sc.order_nr
+	,sc.id_supplier
 	,sc.short_code
 	,sc.supplier_name
 	,sc.id_transaction_type
@@ -388,8 +407,8 @@ func createTransactionTypeView(db *sql.DB, idTransactionType, transactionType st
 	,sc.transaction_value
 	,sc.comment
 	FROM sc 
-	WHERE sc.comment IS NULL
-	AND sc.id_transaction_type IN(` + idTransactionType + `)
+	-- WHERE sc.comment = 'NULL'
+	WHERE sc.id_transaction_type IN(` + idTransactionType + `)
 	`
 
 	createTransactionTypeView, err := db.Prepare(createTransactionTypeViewStr)
@@ -409,6 +428,7 @@ func createItemPriceCreditOmsView(db *sql.DB) {
 	SELECT 
 	ipc.oms_id_sales_order_item
 	,ipc.order_nr
+	,ipc.id_supplier
 	,ipc.short_code
 	,ipc.supplier_name
 	,ipc.id_transaction_type
@@ -439,6 +459,7 @@ func createItemPriceOmsView(db *sql.DB) {
 	SELECT 
 	ipt.oms_id_sales_order_item
 	,ipt.order_nr
+	,ipt.id_supplier
 	,ipt.short_code
 	,ipt.supplier_name
 	,ipt.id_transaction_type
@@ -456,6 +477,28 @@ func createItemPriceOmsView(db *sql.DB) {
 	createItemPriceOmsView, err := db.Prepare(createItemPriceOmsViewStr)
 	checkError(err)
 	createItemPriceOmsView.Exec()
+}
+
+func DownloadToCsvTest(db *sql.DB, tableName string) {
+
+	query := `SELECT ` + tableName + `.oms_id_sales_order_item FROM ` + tableName
+	var omsIDSalesOrderItem int
+	var ngsTemplate []scomsrow.ScOmsRow
+
+	rows, err := db.Query(query)
+	checkError(err)
+
+	for rows.Next() {
+		err := rows.Scan(&omsIDSalesOrderItem)
+		checkError(err)
+		ngsTemplate = append(ngsTemplate,
+			scomsrow.ScOmsRow{
+				OmsIDSalesOrderItem: omsIDSalesOrderItem,
+			})
+		err = sqltocsv.WriteFile(tableName+".csv", rows)
+		checkError(err)
+	}
+
 }
 
 func checkError(err error) {
